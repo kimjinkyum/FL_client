@@ -1,8 +1,12 @@
 import ast
+import random
+import numpy as np
 import torch
 from model import CNNMnist, CNNCifar, CNNFashion_Mnist
 from torch import nn
 from utils import get_dataset
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Subset
 
 
 class FL:
@@ -16,8 +20,12 @@ class FL:
     def initial(self, param):
         self.options = param
         train_dataset, test_dataset = get_dataset(self.options)
+        num_items = int(len(train_dataset) / self.options["num_users"])
+        all_indexs = [i for i in range(len(train_dataset))]
+        index = self.options["id"] * num_items
+        my_subset = Subset(train_dataset, all_indexs[index:index + num_items])
 
-        self.train_load = torch.utils.data.DataLoader(train_dataset,
+        self.train_load = torch.utils.data.DataLoader(my_subset,
                                                       batch_size=self.options["local_bs"],
                                                       shuffle=True)
 
@@ -43,12 +51,11 @@ class FL:
         model = select_model(self.options)
         model.to('cuda')
         model.load_state_dict(self.weight)
-        criterion = nn.NLLLoss().to('cuda')
+        criterion = nn.CrossEntropyLoss().to('cuda')
         optimizer = torch.optim.SGD(model.parameters(), lr=self.options["lr"],
-                                    momentum=0.5)
+                                    momentum=0.9)
         model.train()
         print("Start Training")
-
         for iter in range(self.options["local_ep"]):
             batch_loss = []
             for batch_index, (images, labels) in enumerate(self.train_load):
@@ -60,12 +67,12 @@ class FL:
                 loss.backward()
                 optimizer.step()
                 batch_loss.append(loss.item())
-                if batch_index == 5:
-                    break
+
         print('After Local Epoch : {}  \tLoss: {:.6f}'.format(iter, sum(batch_loss) / len(batch_loss)))
 
         self.weight = model.state_dict()
-        return "Finish"
+        return sum(batch_loss) / len(batch_loss)
+
 
 def select_model(args):
     if args['dataset'] == 'mnist':

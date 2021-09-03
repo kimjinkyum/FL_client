@@ -1,12 +1,9 @@
-import copy
-import torch
-import numpy as np
 from torchvision import datasets, transforms
-import pickle
 
 
 def get_dataset(param):
-    data_dir = '../data/'+param["dataset"]+"/"
+    # data_dir = "./"
+    data_dir = './data/' + param["dataset"] + "/"
     if param["dataset"] == 'cifar':
         apply_transform = transforms.Compose(
             [transforms.ToTensor(),
@@ -25,6 +22,7 @@ def get_dataset(param):
             transforms.Normalize((0.1307,), (0.3081,))])
 
         if param["dataset"] == 'mnist':
+            print("Start Download")
             train_dataset = datasets.MNIST(data_dir, train=True, download=True,
                                            transform=apply_transform)
 
